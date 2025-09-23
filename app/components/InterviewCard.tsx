@@ -61,7 +61,7 @@ const InterviewCard = ({
                             ? `/interview/${interviewId}/feedback`
                             : `/interview/${interviewId}`
                         }>
-                            {feedback? 'Check Feedback': "view"}
+                            {feedback? 'Check Feedback': "View Interview"}
                         </Link>
                     </Button>
                 </div>
