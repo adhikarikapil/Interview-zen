@@ -1,19 +1,19 @@
 import { initializeApp, getApp, getApps } from "firebase/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_CLIENT_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
-  measurementId: process.env.FIREBASE_MEASUREMENT_ID 
+  apiKey: "AIzaSyAMpPk_MDGIybJfyzLnmVLRlrbnZk4UC98",
+  authDomain: "interview-zen.firebaseapp.com",
+  projectId: "interview-zen",
+  storageBucket: "interview-zen.firebasestorage.app",
+  messagingSenderId: "173123519285",
+  appId: "1:173123519285:web:f65f90f3d251df951b027c",
+  measurementId: "G-M5YWG860Y3"
 };
 
 // Initialize Firebase
 const app = !getApps.length ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = getFirestore(app)
