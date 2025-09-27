@@ -9,7 +9,7 @@ import { z } from "zod";
 
 import Image from "next/image";
 import Link from "next/link";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import FormField from "./FormField";
 import { useRouter } from "next/navigation";
 
