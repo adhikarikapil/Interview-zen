@@ -79,7 +79,6 @@ const Agent = ({ userName, userId, type }: AgentProps) => {
         ) : (
           <>
             <button className="btn-disconnect">End</button>
-            <button className="btn-disconnect">End</button>
           </>
         )}
       </div>
