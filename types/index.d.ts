@@ -76,6 +76,10 @@ interface SignInParams {
   idToken: string;
 }
 
+interface LogOutParams {
+    idToken: string; 
+}
+
 interface SignUpParams {
   uid: string;
   name: string;

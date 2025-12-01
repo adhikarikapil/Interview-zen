@@ -84,6 +84,24 @@ export async function setSessionCookie(idToken: string) {
   });
 }
 
+export async function logout() {
+  const cookieStore = await cookies();
+  try {
+    cookieStore.delete("session");
+    return {
+      success: true,
+      message: "Successfully logged out!!!",
+    };
+  } catch (error: any) {
+    console.log(error);
+
+    return {
+      success: false,
+      message: "Failed to logout",
+    };
+  }
+}
+
 export async function getCurrentUser(): Promise<User | null> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session")?.value;
