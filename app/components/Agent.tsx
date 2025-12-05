@@ -43,15 +43,18 @@ const Agent = ({ userName, userId }: AgentProps) => {
     },
   });
 
-  const onSubmit = async (data: FormType) => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) {
+      throw new Error("Api Url is missing. Did you set the correct api url?");
+    }
+    
+console.log("API URL:", process.env.NEXT_PUBLIC_API_URL);
+
+  const onSubmit = async (data: FormType) => {
     const payload = {
       ...data,
       userid: userId,
     };
-    if (!apiUrl) {
-      throw new Error("Api Url is missing. Did you set the correct api url?");
-    }
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
