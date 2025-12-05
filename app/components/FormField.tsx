@@ -15,7 +15,8 @@ interface FormFieldProps<T extends FieldValues> {
   name: Path<T>;
   label: string;
   placeholder?: string;
-  type?: "text" | "email" | "password" | "file";
+  type?: "text" | "email" | "password" | "file" | "select";
+  options?: string[];
 }
 
 const FormField = ({
@@ -24,6 +25,7 @@ const FormField = ({
   label,
   placeholder,
   type = "text",
+  options = [],
 }: FormFieldProps<T>) => {
   return (
     <div>
@@ -34,14 +36,27 @@ const FormField = ({
           <FormItem>
             <FormLabel className="label">{label}</FormLabel>
             <FormControl>
-              <Input
-                className="input"
-                placeholder={placeholder}
-                {...field}
-                type={type}
-              />
+              {type === "select" ? (
+                <select {...field} className="input">
+                  <option value="" disabled>
+                    Select {label}
+                  </option>
+
+                  {options.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  {...field}
+                  placeholder={placeholder}
+                  type={type}
+                  className="input"
+                />
+              )}
             </FormControl>
-            {/* <FormDescription>This is your public display name.</FormDescription> */}
             <FormMessage />
           </FormItem>
         )}
