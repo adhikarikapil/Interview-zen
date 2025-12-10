@@ -4,9 +4,10 @@ import dayjs from "dayjs";
 import Image from "next/image";
 import Link from "next/link";
 import DisplayTechIcons from "./DisplayTechIcons";
+import { getCurrentUser, getUserByUserId } from "@/lib/actions/auth.action";
 
-const InterviewCard = ({
-    interviewId,
+const InterviewCard = async ({
+  interviewId,
   userId,
   role,
   type,
@@ -20,6 +21,21 @@ const InterviewCard = ({
     feedback?.createdAt || createdAt || Date.now(),
   ).format("MMM D, YYYY");
 
+  const currentUser = await getCurrentUser();
+  const isOwner = !!(userId && currentUser?.id && userId === currentUser.id);
+
+  let interviewOwner: User | null = null;
+  if (userId) {
+    try {
+      interviewOwner =
+        isOwner && currentUser ? currentUser : await getUserByUserId(userId);
+    } catch (error) {
+      console.error("Failed to fetch interview owner", error);
+    }
+  }
+
+  const ownerName = interviewOwner?.name ?? "Unknown";
+
   return (
     <div className="card-border w-[360px] max-sm:w-full min-h-96">
       <div className="card-interview">
@@ -27,13 +43,39 @@ const InterviewCard = ({
           <div className="absolute top-0 right-0 w-fit px-4 py-2 rounded-bl-lg bg-light-600">
             <p className="badge-text">{normalizedType}</p>
           </div>
-          <Image
-            src={getRandomInterviewCover()}
-            alt="cover image"
-            width={90}
-            height={90}
-            className="rounded-full object-git size-[90px]"
-          />
+          <div className="flex flex-row items-center space-x-7">
+            {isOwner && (
+              <div className="flex flex-row space-x--2 items-center gap-2">
+                <Image
+                  src="/mic.svg"
+                  alt="cover image"
+                  width={50}
+                  height={50}
+                  className="rounded-full object-git"
+                />
+
+                <div className="text-l">Created by: {ownerName}</div>
+              </div>
+            )}
+            {!isOwner && (
+              <div className="flex flex-row space-x--2 items-center gap-2">
+                <Image
+                  src="/mic.svg"
+                  alt="cover image"
+                  width={50}
+                  height={50}
+                  className="rounded-full object-git"
+                />
+                <div className="flex flex-col gap-2">
+                  <div className="text-l">Created by: {ownerName}</div>
+                  <div className="flex flex-row gap-2 items-center">
+                    <Image src="/star.svg" alt="star" width={22} height={22} />
+                    <p>{feedback?.totalScore || "---"}/100</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           <h3 className="mt-5 capitalized">{role} Interview</h3>
           <div className="flex flex-row gap-5 mt-3">
             <div className="flex flex-row gap-2">
@@ -43,28 +85,38 @@ const InterviewCard = ({
                 width={22}
                 height={22}
               />
-                            <p>{formattedDate}</p>
+              <p>{formattedDate}</p>
             </div>
-                        <div className="flex flex-row gap-2 items-center">
-                            <Image src="/star.svg" alt="star" width={22} height={22} />
-                            <p>{feedback?.totalScore || '---'}/100</p>
-                        </div>
-          </div>
-                    <p className="line-clamp-2 mt-5">
-                        {feedback?.finalAssessment || "You haven't taken the interview yet. Take it now to improve your skills."}
-                    </p>
-        </div>
-                <div className="flex flex-row justify-between">
-                    <DisplayTechIcons techStack={techstack} />
-                    <Button className="btn-primary">
-                        <Link href={feedback
-                            ? `/interview/${interviewId}/feedback`
-                            : `/interview/${interviewId}`
-                        }>
-                            {feedback? 'Check Feedback': "View Interview"}
-                        </Link>
-                    </Button>
+            {isOwner ? (
+              <>
+                <div className="flex flex-row gap-2 items-center">
+                  <Image src="/star.svg" alt="star" width={22} height={22} />
+                  <p>{feedback?.totalScore || "---"}/100</p>
                 </div>
+              </>
+            ) : (
+              <div></div>
+            )}
+          </div>
+          <p className="line-clamp-2 mt-5">
+            {feedback?.finalAssessment ||
+              "You haven't taken the interview yet. Take it now to improve your skills."}
+          </p>
+        </div>
+        <div className="flex flex-row justify-between">
+          <DisplayTechIcons techStack={techstack} />
+          <Button className="btn-primary">
+            <Link
+              href={
+                feedback
+                  ? `/interview/${interviewId}/feedback`
+                  : `/interview/${interviewId}`
+              }
+            >
+              {feedback ? "Check Feedback" : "Take Interview"}
+            </Link>
+          </Button>
+        </div>
       </div>
     </div>
   );

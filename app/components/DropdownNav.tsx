@@ -12,12 +12,14 @@ import {
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { logout } from "@/lib/actions/auth.action";
+import { useId } from "react";
 
 const DropdownNav = (userName: any) => {
+    const id = useId()
   return (
     <div>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild id={id}>
               <Button variant="ghost">
                 <Image
                   src="/arrow-down.svg"

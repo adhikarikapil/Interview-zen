@@ -95,6 +95,10 @@ export const mappings = {
   netlify: "netlify",
   vercel: "vercel",
   "aws amplify": "amplify",
+    python: "python",
+    sql: 'mysql',
+    pandas: 'pandas',
+    numpy:  'numpy',
 };
 
 // export const interviewer: CreateAssistantDTO = {

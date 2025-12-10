@@ -48,30 +48,48 @@ const Agent = ({ userName, userId }: AgentProps) => {
       throw new Error("Api Url is missing. Did you set the correct api url?");
     }
     
-console.log("API URL:", process.env.NEXT_PUBLIC_API_URL);
-
   const onSubmit = async (data: FormType) => {
-    const payload = {
-      ...data,
-      userid: userId,
-    };
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    const responseData = await response.json();
-    console.log(responseData);
     try {
+      const payload = {
+        ...data,
+        userid: userId,
+      };
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const responseData = await response.json();
+      
       if (responseData?.success) {
         toast.success("Interview Generation successfull.");
         route.push("/");
+      } else {
+        // Handle API errors with detailed messages
+        const error = responseData?.error;
+        let errorMessage = error?.message || error?.name || "Failed to generate interview questions";
+        
+        // Special handling for quota errors
+        if (error?.isQuotaError || error?.statusCode === 429) {
+          errorMessage = "API quota exceeded. ";
+          if (error?.retryAfter) {
+            const retrySeconds = Math.ceil(parseFloat(error.retryAfter.replace("s", "")));
+            errorMessage += `Please try again in ${retrySeconds} seconds. `;
+          }
+          errorMessage += "You may need to check your Google AI API quota limits or upgrade your plan.";
+        }
+        
+        const errorReason = error?.reason && !error?.isQuotaError
+          ? ` (${error.reason})` 
+          : "";
+        console.error("API Error:", error);
+        toast.error(`${errorMessage}${errorReason}`);
       }
     } catch (error) {
-      console.error(error);
-      toast.error(`There is an error: ${error}`);
+      console.error("Network or parsing error:", error);
+      toast.error(`Network error: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
