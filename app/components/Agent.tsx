@@ -1,250 +1,209 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Form } from "@/components/ui/form";
-
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-
 import Image from "next/image";
-import { toast } from "sonner";
-import FormField from "./FormField";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FormProvider } from "react-hook-form";
 
-const roleOptions = ["Senior", "Junior", "Intern"];
-const typeOptions = [
-  "technical",
-  "behavioral",
-  "mixed between technical and behaviroul",
-];
+import { cn } from "@/lib/utils";
+import { vapi } from "@/lib/vapi.sdk";
+import { interviewer } from "@/constants";
 
-const interviewFormSchema = z.object({
-  role: z.string().min(1),
-  level: z.string().min(1),
-  type: z.string().min(1),
-  techstack: z.string().min(1),
-  amount: z.string().min(1),
-});
+enum CallStatus {
+  INACTIVE = "INACTIVE",
+  CONNECTING = "CONNECTING",
+  ACTIVE = "ACTIVE",
+  FINISHED = "FINISHED",
+}
 
-type FormType = z.infer<typeof interviewFormSchema>;
+interface SavedMessage {
+  role: "user" | "system" | "assistant";
+  content: string;
+}
 
-const Agent = ({ userName, userId }: AgentProps) => {
-  const route = useRouter();
-  const form = useForm<FormType>({
-    resolver: zodResolver(interviewFormSchema),
-    defaultValues: {
-      role: "",
-      level: "",
-      type: "",
-      techstack: "",
-      amount: "",
-    },
-  });
+const Agent = ({
+  userName,
+  userId,
+  interviewId,
+  type,
+  questions,
+}: AgentProps) => {
+  const router = useRouter();
+  const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
+  const [messages, setMessages] = useState<SavedMessage[]>([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [lastMessage, setLastMessage] = useState<string>("");
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) {
-      throw new Error("Api Url is missing. Did you set the correct api url?");
-    }
-    
-  const onSubmit = async (data: FormType) => {
-    try {
-      const payload = {
-        ...data,
-        userid: userId,
-      };
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-      const responseData = await response.json();
-      
-      if (responseData?.success) {
-        toast.success("Interview Generation successfull.");
-        route.push("/");
-      } else {
-        // Handle API errors with detailed messages
-        const error = responseData?.error;
-        let errorMessage = error?.message || error?.name || "Failed to generate interview questions";
-        
-        // Special handling for quota errors
-        if (error?.isQuotaError || error?.statusCode === 429) {
-          errorMessage = "API quota exceeded. ";
-          if (error?.retryAfter) {
-            const retrySeconds = Math.ceil(parseFloat(error.retryAfter.replace("s", "")));
-            errorMessage += `Please try again in ${retrySeconds} seconds. `;
-          }
-          errorMessage += "You may need to check your Google AI API quota limits or upgrade your plan.";
-        }
-        
-        const errorReason = error?.reason && !error?.isQuotaError
-          ? ` (${error.reason})` 
-          : "";
-        console.error("API Error:", error);
-        toast.error(`${errorMessage}${errorReason}`);
+  useEffect(() => {
+    const onCallStart = () => {
+      setCallStatus(CallStatus.ACTIVE);
+    };
+    const onCallEnd = () => {
+      setCallStatus(CallStatus.FINISHED);
+    };
+
+    const onMessage = (message: Message) => {
+      if (message.type === "transcript" && message.transcriptType === "final") {
+        const newMessage = { role: message.role, content: message.transcript };
+        setMessages((prev) => [...prev, newMessage]);
       }
-    } catch (error) {
-      console.error("Network or parsing error:", error);
-      toast.error(`Network error: ${error instanceof Error ? error.message : "Unknown error"}`);
+    };
+
+    const onSpeechStart = () => {
+      console.log("Speech start");
+      setIsSpeaking(true);
+    };
+
+    const onSpeechEnd = () => {
+      console.log("Speech end");
+      setIsSpeaking(false);
+    };
+
+    const onError = (error: Error) => {
+      console.log("Error: ", error);
+    };
+
+    vapi.on("call-start", onCallStart);
+    vapi.on("call-end", onCallEnd);
+    vapi.on("message", onMessage);
+    vapi.on("speech-start", onSpeechStart);
+    vapi.on("speech-end", onSpeechEnd);
+    vapi.on("error", onError);
+
+    return () => {
+      vapi.off("call-start", onCallStart);
+      vapi.off("call-end", onCallEnd);
+      vapi.off("message", onMessage);
+      vapi.off("speech-start", onSpeechStart);
+      vapi.off("speech-end", onSpeechEnd);
+      vapi.off("error", onError);
+    };
+  }, []);
+
+  const handleGenerateFeedback = async (messages: SavedMessage[]) => {
+    console.log("Generate Feedback here.");
+
+    //TODO: Create a server action that generates feedbacks.
+    const { success, id } = {
+      success: true,
+      id: "feedback-id",
+    };
+
+    if (success && id) {
+      router.push(`/interview/${interviewId}/feedback`);
+    } else {
+      console.error("Error saving feedback");
+      router.push("/");
     }
+  };
+
+  useEffect(() => {
+    if (callStatus === CallStatus.FINISHED) {
+      if (type === "generate") {
+        router.push("/");
+      } else {
+        handleGenerateFeedback(messages);
+      }
+    }
+    if (messages.length > 0) {
+      setLastMessage(messages[messages.length - 1].content);
+    }
+  }, [messages, callStatus, type, userId]);
+
+  const handleCall = async () => {
+    setCallStatus(CallStatus.CONNECTING);
+        if(type==='interview') {
+            let formattedQuestions = '';
+
+            if(questions) {
+                formattedQuestions = questions
+                    .map((question) => `- ${question}`)     
+                    .join('\n')
+            }
+
+            await vapi.start(interviewer, {
+                variableValues: {
+                    questions: formattedQuestions
+                }
+            })
+        }
+
+    await vapi.start(process.env.NEXT_PUBLIC_VAPI_API_KEY);
+  };
+  const handleDisconnect = async () => {
+    setCallStatus(CallStatus.FINISHED);
+    vapi.stop();
   };
 
   return (
     <>
-      <div className="flex justify-center items-center">
-        <div className="card-border lg:min-w-[566px] ">
-          <div className="flex flex-col gap-6 card py-14 px-10">
-            <div className="flex flex-row gap-2 justify-center">
-              <Image src="/logo.svg" alt="logo" height={32} width={38} />
-              <h2 className="text-primary-100">Generate Your Interview</h2>
-            </div>
-            <FormProvider {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-8 w-full mt-4 form"
-              >
-                <FormField
-                  control={form.control}
-                  name="techstack"
-                  label="TechStack"
-                  placeholder="What are the techstack of your Interviewe?"
-                />
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  label="Amount"
-                  placeholder="How many question do you like to prepare?"
-                />
-                <FormField
-                  control={form.control}
-                  name="role"
-                  label="Role"
-                                    placeholder="In which role are you applying?"
-                />
-                <FormField
-                  control={form.control}
-                  name="type"
-                  label="Type"
-                  type="select"
-                  options={typeOptions}
-                />
-                <FormField
-                  control={form.control}
-                  name="level"
-                  label="Level"
-                  type="select"
-                  options={roleOptions}
-                />
-                <Button
-                  type="submit"
-                  className="btn"
-                >
-                  Generate
-                </Button>
-              </form>
-            </FormProvider>
+      <div className="call-view">
+        <div className="card-interviewer">
+          <div className="avatar">
+            <Image
+              src="/ai-avatar.png"
+              alt="vapi"
+              height={54}
+              width={65}
+              className="object-cover"
+            />
+            {isSpeaking && <span className="animate-speak" />}
+          </div>
+          <h3>AI Interviewer</h3>
+        </div>
+
+        <div className="card-border">
+          <div className="card-content">
+            <Image
+              src="/user-avatar.png"
+              alt="profile-imgae"
+              width={539}
+              height={539}
+              className="rounded-full object-cover size-[120px]"
+            />
+            <h3>{userName}</h3>
           </div>
         </div>
+      </div>
+
+      {messages.length > 0 && (
+        <div className="transcript-border">
+          <div className="transcript">
+            <p
+              key={lastMessage}
+              className={cn(
+                "transition-opacity duration-500 opacity-0",
+                "animate-fadeIn opacity-100",
+              )}
+            >
+              {lastMessage}
+            </p>
+          </div>
+        </div>
+      )}
+      <div className="w-full flex justify-center">
+        {callStatus !== "ACTIVE" ? (
+          <button className="relative btn-call" onClick={()=>handleCall()}>
+            <span
+              className={cn(
+                "absolute animate-ping rounded-full opacity-75",
+                callStatus !== "CONNECTING" && "hidded",
+              )}
+            />
+
+            <span className="relative">
+              {callStatus === "INACTIVE" || callStatus === "FINISHED"
+                ? "Call"
+                : ". . ."}
+            </span>
+          </button>
+        ) : (
+          <button className="btn-disconnect" onClick={() => handleDisconnect()}>
+            End
+          </button>
+        )}
       </div>
     </>
   );
 };
 
 export default Agent;
-
-// import { cn } from "@/utils";
-// import Image from "next/image";
-//
-// enum CallStatus {
-//   INACTIVE = "INACTIVE",
-//   CONNECTING = "CONNECTING",
-//   ACTIVE = "ACTIVE",
-//   FINISHED = "FINISHED",
-// }
-//
-// const Agent = ({ userName, userId, type }: AgentProps) => {
-//   const callStatus = CallStatus.ACTIVE;
-//   const isSpeaking = true;
-//   const messages = [
-//     "What's your name?",
-//     "My name is Kapil Adhikari, nice to meet you!",
-//   ];
-//   const lastMessage = messages[messages.length - 1];
-//
-//   return (
-//     <>
-//       <div className="call-view">
-//         <div className="card-interviewer">
-//           <div className="avatar">
-//             <Image
-//               src="/ai-avatar.png"
-//               alt="ai avatar"
-//               width={65}
-//               height={54}
-//               className="object-cover"
-//             />
-//             {isSpeaking && <span className="animate-speak" />}
-//           </div>
-//           <h3>AI Interviewer</h3>
-//         </div>
-//         <div className="card-border">
-//           <div className="card-content">
-//             <Image
-//               src="/user-avatar.png"
-//               alt="User avatar"
-//               width={540}
-//               height={540}
-//               className="rounded-full object-cover size-[120px]"
-//             />
-//             <h3>{userName}</h3>
-//           </div>
-//         </div>
-//       </div>
-//       {messages.length > 0 && (
-//         <div className="transcript-border">
-//           <div className="transcript">
-//             <p
-//               key={lastMessage}
-//               className={cn(
-//                 "transition-opacity duration-500 opacity-0",
-//                 "animate-fadeIn opacity-100",
-//               )}
-//             >
-//               {lastMessage}
-//             </p>
-//           </div>
-//         </div>
-//       )}
-//       <div className="w-full flex justify-center">
-//         {callStatus !== "ACTIVE" ? (
-//           <button className="relative btn-call">
-//             <span
-//               className={cn(
-//                 "absolute animate-ping rounded-full opacity-75",
-//                 callStatus !== "CONNECTING" && "hidden",
-//               )}
-//             />
-//             <span>
-//               {callStatus == "INACTIVE" || callStatus == "FINISHED"
-//                 ? "Call"
-//                 : "..."}
-//             </span>
-//           </button>
-//         ) : (
-//           <>
-//             <button className="btn-disconnect">End</button>
-//           </>
-//         )}
-//       </div>
-//     </>
-//   );
-// };
-//
-// export default Agent;
-//
-//
-//

@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { getRandomInterviewCover } from "@/lib/utils";
 import dayjs from "dayjs";
 import Image from "next/image";
 import Link from "next/link";
@@ -7,7 +6,7 @@ import DisplayTechIcons from "./DisplayTechIcons";
 import { getCurrentUser, getUserByUserId } from "@/lib/actions/auth.action";
 
 const InterviewCard = async ({
-  interviewId,
+  id,
   userId,
   role,
   type,
@@ -33,8 +32,8 @@ const InterviewCard = async ({
       console.error("Failed to fetch interview owner", error);
     }
   }
-
-  const ownerName = interviewOwner?.name ?? "Unknown";
+  const interviewOwnerName = interviewOwner?.name.split(" ") ?? "NA";
+  console.log(interviewOwnerName);
 
   return (
     <div className="card-border w-[360px] max-sm:w-full min-h-96">
@@ -54,7 +53,9 @@ const InterviewCard = async ({
                   className="rounded-full object-git"
                 />
 
-                <div className="text-l">Created by: {ownerName}</div>
+                <div className="text-l">
+                  Created by: {interviewOwnerName[0]}
+                </div>
               </div>
             )}
             {!isOwner && (
@@ -67,7 +68,9 @@ const InterviewCard = async ({
                   className="rounded-full object-git"
                 />
                 <div className="flex flex-col gap-2">
-                  <div className="text-l">Created by: {ownerName}</div>
+                  <div className="text-l">
+                    Created by: {interviewOwnerName[0]}
+                  </div>
                   <div className="flex flex-row gap-2 items-center">
                     <Image src="/star.svg" alt="star" width={22} height={22} />
                     <p>{feedback?.totalScore || "---"}/100</p>
@@ -109,8 +112,8 @@ const InterviewCard = async ({
             <Link
               href={
                 feedback
-                  ? `/interview/${interviewId}/feedback`
-                  : `/interview/${interviewId}`
+                  ? `/interview/${id}/feedback`
+                  : `/interview/${id}`
               }
             >
               {feedback ? "Check Feedback" : "Take Interview"}

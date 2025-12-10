@@ -1,14 +1,14 @@
 import { Button } from "@/components/ui/button";
-import { dummyInterviews, interviewCovers } from "@/constants";
 import Image from "next/image";
 import Link from "next/link";
 import InterviewCard from "../components/InterviewCard";
 import {
   getCurrentUser,
+} from "@/lib/actions/auth.action";
+import {
   getInterviewByUserId,
   getLatestInterviews,
-  getUserByUserId,
-} from "@/lib/actions/auth.action";
+} from "@/lib/actions/general.action"
 
 const page = async () => {
   const currentUser = await getCurrentUser();
