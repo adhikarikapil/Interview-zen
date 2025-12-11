@@ -7,28 +7,32 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { type, role, level, techstack, amount, userid } = await request.json();
-
-  // Check if API key is configured
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    console.error("GOOGLE_GENERATIVE_AI_API_KEY environment variable is not set");
-    return Response.json({ 
-      success: false, 
-      error: {
-        name: "ConfigurationError",
-        message: "Google AI API key is not configured. Please set GOOGLE_GENERATIVE_AI_API_KEY environment variable."
-      }
-    }, { status: 500 });
-  }
-
-  // Log API key info for debugging (first 10 chars only for security)
-  const apiKeyPreview = process.env.GOOGLE_GENERATIVE_AI_API_KEY.substring(0, 10) + "...";
-  console.log("Using Google AI API key:", apiKeyPreview);
-
   try {
-    const { text: questions } = await generateText({
-      model: google("gemini-2.5-flash"),
-      prompt: `Prepare questions for a job interview.
+    const { type, role, level, techstack, amount, userid } =
+      await request.json();
+
+    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+      console.error(
+        "GOOGLE_GENERATIVE_AI_API_KEY enviornment variable is not set.",
+      );
+      return Response.json(
+        {
+          success: false,
+          error: {
+            name: "ConfigurationError",
+            message: "Google AI API key is not configured.",
+          },
+        },
+        { status: 500 },
+      );
+    }
+
+    let questionsText;
+
+    try {
+      const { text } = await generateText({
+        model: google("gemini-2.5-flash"),
+        prompt: `Prepare questions for a job interview.
         The job role is ${role}.
         The job experience level is ${level}.
         The tech stack used in the job is: ${techstack}.
@@ -41,22 +45,55 @@ export async function POST(request: Request) {
 
         Thank you!
 `,
-    });
+      });
+      questionsText = text;
+    } catch (googleError: any) {
+      console.error("GOOGLE ERROR:", googleError);
+      const googleMessage =
+        googleError?.lastError?.message ||
+        googleError?.message ||
+        "Google API error";
 
-        const interview = {
-            role, type, level,
-            techstack: techstack.split(','),
-            questions: JSON.parse(questions),
-            userId: userid,
-            finalized: true,
-            createdAt: new Date().toISOString()
-        }
-
-        await db.collection('interviews').add(interview)
-        return Response.json({success: true}, {status: 200})
-
-  } catch (error) {
-    console.error("Error generating interview questions:", error);
-    
+      return Response.json(
+        {
+          success: false,
+          error: {
+            name: "GoogleAPIError",
+            message: googleMessage,
+            statusCode: googleError?.statusCode || 429,
+          },
+        },
+        { status: googleError?.statusCode || 429 },
+      );
     }
+
+    const questions = JSON.parse(questionsText);
+    const interview = {
+      role,
+      type,
+      level,
+      techstack: techstack.split(","),
+      questions: questions,
+      userId: userid,
+      finalized: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    await db.collection("interviews").add(interview);
+    return Response.json({ success: true }, { status: 200 });
+  } catch (error: any) {
+    console.error("Error generating interview questions:", error);
+
+    return Response.json(
+      {
+        success: false,
+        error: {
+          name: error?.name || "GenerationError",
+          message: error?.message || "Failed to generate interview questions",
+          statusCode: error?.statusCode || 500,
+        },
+      },
+      { status: 500 },
+    );
+  }
 }
