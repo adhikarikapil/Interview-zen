@@ -34,11 +34,11 @@ const Page = async ({ params }: RouteParams) => {
         </p>
       </div>
       <Agent
-        userName={currentUser?.name}
+        userName={currentUser?.name || ''}
         userId={currentUser?.id}
         interviewId={id}
         type="interview"
-                questions={interview.questions} 
+        questions={interview.questions}
       />
     </>
   );
