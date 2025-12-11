@@ -4,9 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import DisplayTechIcons from "./DisplayTechIcons";
 import { getCurrentUser, getUserByUserId } from "@/lib/actions/auth.action";
+ 
+    
 
 const InterviewCard = async ({
-  id,
+  id: interviewId,
   userId,
   role,
   type,
@@ -21,19 +23,14 @@ const InterviewCard = async ({
   ).format("MMM D, YYYY");
 
   const currentUser = await getCurrentUser();
-  const isOwner = !!(userId && currentUser?.id && userId === currentUser.id);
+  if (!userId || !currentUser?.id) return null;
 
-  let interviewOwner: User | null = null;
-  if (userId) {
-    try {
-      interviewOwner =
-        isOwner && currentUser ? currentUser : await getUserByUserId(userId);
-    } catch (error) {
-      console.error("Failed to fetch interview owner", error);
+    const interviewOwner = await getUserByUserId(userId!)
+
+    let isOwner = false
+    if(currentUser === interviewOwner) {
+        isOwner = true
     }
-  }
-  const interviewOwnerName = interviewOwner?.name.split(" ") ?? "NA";
-  console.log(interviewOwnerName);
 
   return (
     <div className="card-border w-[360px] max-sm:w-full min-h-96">
@@ -42,43 +39,34 @@ const InterviewCard = async ({
           <div className="absolute top-0 right-0 w-fit px-4 py-2 rounded-bl-lg bg-light-600">
             <p className="badge-text">{normalizedType}</p>
           </div>
-          <div className="flex flex-row items-center space-x-7">
-            {isOwner && (
-              <div className="flex flex-row space-x--2 items-center gap-2">
-                <Image
-                  src="/mic.svg"
-                  alt="cover image"
-                  width={50}
-                  height={50}
-                  className="rounded-full object-git"
-                />
-
-                <div className="text-l">
-                  Created by: {interviewOwnerName[0]}
-                </div>
+          {isOwner ? (
+            <div className="flex flex-row items-center space-x-7">
+              <Image
+                src="/mic.svg"
+                alt="cover image"
+                width={90}
+                height={90}
+                className="rounded-full object-git size-[90px]"
+              />
+              <div className="flex flex-row gap-2 items-center">
+                <Image src="/star.svg" alt="star" width={22} height={22} />
+                <h2>
+                  <p>{feedback?.totalScore || "---"}/100</p>
+                </h2>
               </div>
-            )}
-            {!isOwner && (
-              <div className="flex flex-row space-x--2 items-center gap-2">
-                <Image
-                  src="/mic.svg"
-                  alt="cover image"
-                  width={50}
-                  height={50}
-                  className="rounded-full object-git"
-                />
-                <div className="flex flex-col gap-2">
-                  <div className="text-l">
-                    Created by: {interviewOwnerName[0]}
-                  </div>
-                  <div className="flex flex-row gap-2 items-center">
-                    <Image src="/star.svg" alt="star" width={22} height={22} />
-                    <p>{feedback?.totalScore || "---"}/100</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex flex-row items-center space-x-4">
+              <Image
+                src="/mic.svg"
+                alt="cover image"
+                width={90}
+                height={90}
+                className="rounded-full object-git size-[90px]"
+              />
+              <div className="text-lg">Created by: {interviewOwner?.name || "NA"}</div>
+            </div>
+          )}
           <h3 className="mt-5 capitalized">{role} Interview</h3>
           <div className="flex flex-row gap-5 mt-3">
             <div className="flex flex-row gap-2">
@@ -91,14 +79,12 @@ const InterviewCard = async ({
               <p>{formattedDate}</p>
             </div>
             {isOwner ? (
-              <>
-                <div className="flex flex-row gap-2 items-center">
-                  <Image src="/star.svg" alt="star" width={22} height={22} />
-                  <p>{feedback?.totalScore || "---"}/100</p>
-                </div>
-              </>
-            ) : (
               <div></div>
+            ) : (
+              <div className="flex flex-row gap-2 items-center">
+                <Image src="/star.svg" alt="star" width={22} height={22} />
+                <p>{feedback?.totalScore || "---"}/100</p>
+              </div>
             )}
           </div>
           <p className="line-clamp-2 mt-5">
@@ -112,8 +98,8 @@ const InterviewCard = async ({
             <Link
               href={
                 feedback
-                  ? `/interview/${id}/feedback`
-                  : `/interview/${id}`
+                  ? `/interview/${interviewId}/feedback`
+                  : `/interview/${interviewId}`
               }
             >
               {feedback ? "Check Feedback" : "Take Interview"}

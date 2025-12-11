@@ -43,11 +43,11 @@ const TakeInterview = ({ userName, userId }: AgentProps) => {
     },
   });
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) {
-      throw new Error("Api Url is missing. Did you set the correct api url?");
-    }
-    
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (!apiUrl) {
+    throw new Error("Api Url is missing. Did you set the correct api url?");
+  }
+
   const onSubmit = async (data: FormType) => {
     try {
       const payload = {
@@ -61,35 +61,37 @@ const TakeInterview = ({ userName, userId }: AgentProps) => {
         },
         body: JSON.stringify(payload),
       });
-      const responseData = await response.json();
-      
-      if (responseData?.success) {
-        toast.success("Interview Generation successfull.");
-        route.push("/");
-      } else {
-        // Handle API errors with detailed messages
-        const error = responseData?.error;
-        let errorMessage = error?.message || error?.name || "Failed to generate interview questions";
-        
-        // Special handling for quota errors
-        if (error?.isQuotaError || error?.statusCode === 429) {
-          errorMessage = "API quota exceeded. ";
-          if (error?.retryAfter) {
-            const retrySeconds = Math.ceil(parseFloat(error.retryAfter.replace("s", "")));
-            errorMessage += `Please try again in ${retrySeconds} seconds. `;
-          }
-          errorMessage += "You may need to check your Google AI API quota limits or upgrade your plan.";
-        }
-        
-        const errorReason = error?.reason && !error?.isQuotaError
-          ? ` (${error.reason})` 
-          : "";
-        console.error("API Error:", error);
-        toast.error(`${errorMessage}${errorReason}`);
+      let responseData = null;
+      try {
+        responseData = await response.json();
+      } catch (error) {
+        console.warn("Response had no JSON body", error);
       }
-    } catch (error) {
-      console.error("Network or parsing error:", error);
-      toast.error(`Network error: ${error instanceof Error ? error.message : "Unknown error"}`);
+      if (!response.ok) {
+        const errorMessage =
+          responseData?.error?.message ?? "Failed to generate interview";
+        toast.error(errorMessage);
+        return;
+      }
+
+      console.log("Success: ", responseData);
+      toast.success("Interview generation successfull.");
+      route.push("/");
+    } catch (error: any) {
+      console.error("Error generating interview questions: ", error);
+      toast.error("Error: ", error);
+      return Response.json(
+        {
+          success: false,
+          error: {
+            name: error?.name || "GenerationError",
+            message: error?.message || "Failed to generate interview questions",
+            statusCode: error?.statusCode || 500,
+            reason: error?.reason || "unknown",
+          },
+        },
+        { status: error?.statusCode || 500 },
+      );
     }
   };
 
@@ -123,7 +125,7 @@ const TakeInterview = ({ userName, userId }: AgentProps) => {
                   control={form.control}
                   name="role"
                   label="Role"
-                                    placeholder="In which role are you applying?"
+                  placeholder="In which role are you applying?"
                 />
                 <FormField
                   control={form.control}
@@ -139,10 +141,7 @@ const TakeInterview = ({ userName, userId }: AgentProps) => {
                   type="select"
                   options={roleOptions}
                 />
-                <Button
-                  type="submit"
-                  className="btn"
-                >
+                <Button type="submit" className="btn">
                   Generate
                 </Button>
               </form>

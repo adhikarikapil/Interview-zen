@@ -134,7 +134,10 @@ export async function getUserByUserId(userId: string): Promise<User | null> {
   if (!userId) {
     throw new Error("No User.");
   }
-  const userRecord = await db.collection("users").doc(userId).get();
+  const userRecord = await db
+    .collection("users")
+        .doc(userId)
+    .get();
 
   if (!userRecord.exists) {
     return null;
@@ -155,3 +158,17 @@ export async function isAuthenticated() {
   return !!user;
 }
 
+export async function getInterviewByUserId(
+  userId: string,
+): Promise<Interview[] | null> {
+  const interviews = await db
+    .collection("interviews")
+    .where("userId", "==", userId)
+    .orderBy("createdAt", "desc")
+    .get();
+
+  return interviews.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as Interview[];
+}

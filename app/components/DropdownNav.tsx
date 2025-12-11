@@ -13,9 +13,29 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { logout } from "@/lib/actions/auth.action";
 import { useId } from "react";
+import { useEffect, useState } from "react";
 
 const DropdownNav = (userName: any) => {
-    const id = useId()
+    const [mounted, setMounted] = useState(false);
+    const id = useId();
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) {
+        return (
+            <Button variant="ghost">
+                <Image
+                    src="/arrow-down.svg"
+                    alt="down"
+                    width={12}
+                    height={12}
+                />
+            </Button>
+        );
+    }
+
   return (
     <div>
           <DropdownMenu>
