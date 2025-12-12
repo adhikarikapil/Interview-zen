@@ -93,21 +93,49 @@ export async function createFeedback(params: CreateFeedbackParams) {
       system:
         "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories",
     });
-        const feedback = await db.collection('feedback').add({
-            interviewId,
-            userId,
-            totalScore,
-            categoryScores,
-            strengths,
-            areasForImprovement,
-            finalAssessment,
-            createdAt: new Date().toISOString()
-        })
 
-        return {
-            success: true,
-            feedbackId: feedback.id
-        }
+    // Check if feedback already exists for this interview
+    const existingFeedback = await db
+      .collection('feedback')
+      .where('interviewId', '==', interviewId)
+      .where('userId', '==', userId)
+      .limit(1)
+      .get();
+
+    const feedbackData = {
+      interviewId,
+      userId,
+      totalScore,
+      categoryScores,
+      strengths,
+      areasForImprovement,
+      finalAssessment,
+      updatedAt: new Date().toISOString(),
+    };
+
+    let feedbackId: string;
+
+    if (!existingFeedback.empty) {
+      // Update existing feedback
+      const existingDoc = existingFeedback.docs[0];
+      feedbackId = existingDoc.id;
+      await db.collection('feedback').doc(feedbackId).update({
+        ...feedbackData,
+        createdAt: existingDoc.data().createdAt, // Preserve original creation date
+      });
+    } else {
+      // Create new feedback
+      const newFeedback = await db.collection('feedback').add({
+        ...feedbackData,
+        createdAt: new Date().toISOString(),
+      });
+      feedbackId = newFeedback.id;
+    }
+
+    return {
+      success: true,
+      feedbackId: feedbackId
+    }
   } catch (e) {
     console.error("Error saving feedback: ", e);
         return {
